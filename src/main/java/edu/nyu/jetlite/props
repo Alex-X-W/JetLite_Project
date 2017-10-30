@@ -1,0 +1,10 @@
+POStagger.model.fileName = POSmodel
+NEtagger.model.fileName = NEmodel
+DepParser.model.fileName = parseModel.gz
+EntityTagger.model.fileName = Emodel
+RelationTagger.model.fileName = Rmodel
+EventTagger.model.fileName = Vmodel
+NeuralTagModel.modelDir = ./src/main/resources/tf_model
+NeuralTagModel.modelFileName = ./src/main/resources/tf_model/NeuralVmodel
+NeuralTagModel.mappings = ./src/main/resources/tf_model/mappings.json
+annotators = token sentence pos name parse coref entity relation event
