@@ -28,6 +28,7 @@ public class EventTagger extends Annotator {
 
     // the MaxEnt model
     GISModel model;
+    private NeuralTagModel neuralTagModel;
 
     /**
      *  Create a new EventTagger.
@@ -38,6 +39,7 @@ public class EventTagger extends Annotator {
 
     public EventTagger (Properties config) throws IOException {
         modelFileName = config.getProperty("EventTagger.model.fileName");
+        neuralTagModel = new NeuralTagModel(config);
     }
 
     /**
@@ -346,23 +348,61 @@ public class EventTagger extends Annotator {
      *  Annotate a document with EventMention annotations.
      */
 
+//    public Document annotate (Document doc, Span span) {
+//        if (model == null)
+//            model = MaxEnt.loadModel(modelFileName, "EventTagger");
+//        Vector<Annotation> tokens = doc.annotationsOfType("token");
+//        if (tokens == null)
+//            return doc;
+//        for (Annotation token : tokens) {
+//            String tokenText = doc.normalizedText(token);
+//            Datum d = eventFeatures(tokenText);
+//            String prediction = model.getBestOutcome(model.eval(d.toArray()));
+//            if ( !prediction.equals("other")) {
+//                EventMention em = new EventMention(token.span());
+//                doc.addAnnotation (em);
+//                em.setSemType(prediction);
+//                System.out.println ("* Found event " + tokenText + " of type " + prediction);
+//            }
+//        }
+//        return doc;
+//    }
+
     public Document annotate (Document doc, Span span) {
         if (model == null)
             model = MaxEnt.loadModel(modelFileName, "EventTagger");
-        Vector<Annotation> tokens = doc.annotationsOfType("token");
-        if (tokens == null)
+        Vector<Annotation> sentences = doc.annotationsOfType("sentence");
+        if (sentences == null) {
             return doc;
-        for (Annotation token : tokens) {
-            String tokenText = doc.normalizedText(token);
-            Datum d = eventFeatures(tokenText);
-            String prediction = model.getBestOutcome(model.eval(d.toArray()));
-            if ( !prediction.equals("other")) {
-                EventMention em = new EventMention(token.span());
-                doc.addAnnotation (em);
-                em.setSemType(prediction);
-                System.out.println ("* Found event " + tokenText + " of type " + prediction);
-            }
+        }
+        for (Annotation sent : sentences) {
+            Sentence sentence = (Sentence) sent;
+            String[] tags = neuralTagModel.predict(doc, sentence);
+            annotateByTags(tags, doc, sentence);
         }
         return doc;
+    }
+
+    private void annotateByTags(String[] tags, Document doc, Sentence sent) {
+        Span span = sent.span();
+        int posn = span.start();
+
+        // retrieve tokens from sentence span
+        ArrayList<Annotation> tokens = new ArrayList<>();
+        while (posn < span.end()) {
+            Annotation tokenAnnotation = doc.tokenAt(posn);
+            if (tokenAnnotation == null)
+                break;
+            tokens.add(tokenAnnotation);
+            posn = tokenAnnotation.end();
+        }
+        for (int i = 0; i < tokens.size(); ++i) {
+            if (!tags[i].equals("other")) {
+                EventMention em = new EventMention(tokens.get(i).span());
+                doc.addAnnotation(em);
+                em.setSemType(tags[i]);
+                System.out.println("* Found event " + doc.normalizedText(tokens.get(i)).trim() + " of type " + tags[i]);
+            }
+        }
     }
 }
